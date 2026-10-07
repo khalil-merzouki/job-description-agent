@@ -1,0 +1,30 @@
+{
+  "name": "job-description-agent",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "tsx --env-file-if-exists=.env index.tsx",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.33.0",
+  "dependencies": {
+    "@ai-sdk/openai": "^4.0.87",
+    "@fission-ai/openspec": "^1.14.1",
+    "ai": "^7.0.131",
+    "ink": "^8.0.0",
+    "ink-spinner": "^5.0.0",
+    "react": "^19.3.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
