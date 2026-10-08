@@ -6,7 +6,11 @@
   "type": "module",
   "scripts": {
     "start": "tsx --env-file-if-exists=.env index.tsx",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --import tsx --test evals/evaluators.test.ts",
+    "typecheck": "tsc --noEmit",
+    "eval": "node --env-file-if-exists=.env --import tsx evals/run.ts",
+    "eval:mock": "node --env-file-if-exists=.env --import tsx evals/run.ts --mock",
+    "eval:local": "node --import tsx evals/run.ts --mock --local"
   },
   "keywords": [],
   "author": "",
@@ -22,6 +26,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@lmnr-ai/lmnr": "^0.8.49",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "tsx": "^4.23.15",

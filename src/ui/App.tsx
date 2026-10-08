@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
-import { analyzeJobDescription } from '../agent/jobAnalyzer.js';
-import type { JobAnalysis } from '../agent/schema.js';
+import { analyzeJobDescription, type JobAnalysisResult } from '../agent/jobAnalyzer.js';
 import { JobInput } from './JobInput.js';
 import { AnalysisResult } from './AnalysisResult.js';
 
 type State =
   | { step: 'input' }
   | { step: 'analyzing' }
-  | { step: 'result'; analysis: JobAnalysis }
+  | { step: 'result'; result: JobAnalysisResult }
   | { step: 'error'; message: string };
 
 export const App = () => {
@@ -19,8 +18,8 @@ export const App = () => {
   const handleSubmit = async (jobDescription: string) => {
     setState({ step: 'analyzing' });
     try {
-      const analysis = await analyzeJobDescription(jobDescription);
-      setState({ step: 'result', analysis });
+      const result = await analyzeJobDescription(jobDescription);
+      setState({ step: 'result', result });
     } catch (error) {
       setState({ step: 'error', message: error instanceof Error ? error.message : String(error) });
     }
@@ -44,11 +43,20 @@ export const App = () => {
 
       {state.step === 'analyzing' && (
         <Text color="yellow">
-          <Spinner type="dots" /> Analyzing the job description…
+          <Spinner type="dots" /> Analyzing the job description and saving the result…
         </Text>
       )}
 
-      {state.step === 'result' && <AnalysisResult analysis={state.analysis} />}
+      {state.step === 'result' && (
+        <Box flexDirection="column">
+          <AnalysisResult analysis={state.result.analysis} />
+          {state.result.filePath ? (
+            <Text color="green">💾 Saved to {state.result.filePath}</Text>
+          ) : (
+            <Text color="yellow">⚠ The agent did not save the result to a file.</Text>
+          )}
+        </Box>
+      )}
 
       {state.step === 'error' && (
         <Box borderStyle="round" borderColor="red" paddingX={1}>

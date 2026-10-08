@@ -7,4 +7,9 @@ if (!process.env.OPENAI_API_KEY) {
   process.exit(1);
 }
 
+if (!process.env.OUTPUT_DIR) {
+  console.error('Missing OUTPUT_DIR. Add the folder where results should be saved to your .env file (see .env.example).');
+  process.exit(1);
+}
+
 render(<App />);
