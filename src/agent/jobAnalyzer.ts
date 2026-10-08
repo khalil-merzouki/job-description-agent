@@ -1,28 +1,19 @@
-import { generateText, isStepCount, Output, type LanguageModel } from "ai";
+import {
+  generateText,
+  isStepCount,
+  Output,
+  registerTelemetry,
+  type LanguageModel,
+} from "ai";
 import { openai } from "@ai-sdk/openai";
+import { evaluateJobDescription, type GuardrailClient } from "./guardrails.js";
 import { jobAnalysisSchema, type JobAnalysis } from "./schema.js";
 import { writeFileTool } from "./tools/writeFile.js";
+import { SYSTEM_PROMPT } from "./system/prompt.js";
+import { LaminarAiSdkTelemetry } from "@lmnr-ai/lmnr";
+import "dotenv/config";
 
 const MODEL = process.env.OPENAI_MODEL ?? "gpt-6-luna";
-
-const SYSTEM_PROMPT = `You are an expert recruiter and job market analyst.
-You receive a raw job description and extract the most important information from it.
-
-Rules:
-- Only report facts that are present in the job description, except for the salary.
-- If the salary is not stated, ESTIMATE a realistic yearly gross range based on the job title,
-  seniority, required skills, location and work mode. Set "isEstimated" to true and explain the basis.
-- If the salary is stated, copy it as-is (convert to numbers), set "isEstimated" to false.
-- Use "unknown" for enum values that cannot be determined, and null for missing optional facts.
-- Keep skills short and normalized (e.g. "TypeScript", "React", "AWS").
-- Answer in English, regardless of the language of the job description.
-
-Workflow:
-1. Analyze the job description.
-2. Call the "writeFile" tool exactly once to save the analysis as pretty-printed JSON (2-space indent).
-   The JSON must follow the same structure as your final answer.
-   Name the file "<company>-<job-title>.json" in lowercase kebab-case (use "unknown-company" if there is no company).
-3. Return the analysis as your final answer.`;
 
 export type JobAnalysisResult = {
   analysis: JobAnalysis;
@@ -30,13 +21,31 @@ export type JobAnalysisResult = {
   filePath: string | null;
 };
 
+export class InvalidJobDescriptionError extends Error {
+  constructor() {
+    super(
+      "This text does not appear to be a job description. Please provide a job posting describing a role, responsibilities, or qualifications.",
+    );
+    this.name = "InvalidJobDescriptionError";
+  }
+}
+
+registerTelemetry(new LaminarAiSdkTelemetry());
+
 export async function analyzeJobDescription(
   jobDescription: string,
   options: {
     model?: LanguageModel;
     writeFileTool?: typeof writeFileTool;
+    guardrailClient?: GuardrailClient;
   } = {},
 ): Promise<JobAnalysisResult> {
+  const { accepted } = await evaluateJobDescription(
+    jobDescription,
+    options.guardrailClient,
+  );
+  if (!accepted) throw new InvalidJobDescriptionError();
+
   const { output, steps } = await generateText({
     model: options.model ?? openai(MODEL),
     system: SYSTEM_PROMPT,
@@ -55,7 +64,11 @@ export async function analyzeJobDescription(
   return {
     analysis: output,
     filePath:
-      savedFile && typeof savedFile === "object" && "filePath" in savedFile &&
-      typeof savedFile.filePath === "string" ? savedFile.filePath : null,
+      savedFile &&
+      typeof savedFile === "object" &&
+      "filePath" in savedFile &&
+      typeof savedFile.filePath === "string"
+        ? savedFile.filePath
+        : null,
   };
 }

@@ -6,11 +6,14 @@
   "type": "module",
   "scripts": {
     "start": "tsx --env-file-if-exists=.env index.tsx",
-    "test": "node --import tsx --test evals/evaluators.test.ts",
+    "test": "node --import tsx --test evals/evaluators.test.ts evals/guardrails/*.test.ts",
     "typecheck": "tsc --noEmit",
     "eval": "node --env-file-if-exists=.env --import tsx evals/run.ts",
     "eval:mock": "node --env-file-if-exists=.env --import tsx evals/run.ts --mock",
-    "eval:local": "node --import tsx evals/run.ts --mock --local"
+    "eval:local": "node --import tsx evals/run.ts --mock --local",
+    "eval:guardrails": "node --env-file-if-exists=.env --import tsx evals/guardrails/run.ts",
+    "eval:guardrails:mock": "node --env-file-if-exists=.env --import tsx evals/guardrails/run.ts --mock",
+    "eval:guardrails:local": "node --import tsx evals/guardrails/run.ts --mock --local"
   },
   "keywords": [],
   "author": "",
@@ -19,7 +22,9 @@
   "dependencies": {
     "@ai-sdk/openai": "^4.0.87",
     "@fission-ai/openspec": "^1.14.1",
+    "@typesafe-ai/sdk": "^0.6.0",
     "ai": "^7.0.131",
+    "dotenv": "^18.0.6",
     "ink": "^8.0.0",
     "ink-spinner": "^5.0.0",
     "react": "^19.3.0",

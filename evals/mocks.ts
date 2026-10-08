@@ -1,4 +1,5 @@
 import { MockLanguageModelV4 } from 'ai/test';
+export { createMockGuardrailClient } from './guardrails/mocks.js';
 import path from 'node:path';
 import { writeFileTool } from '../src/agent/tools/writeFile.js';
 import type { EvalCase } from './fixtures.js';

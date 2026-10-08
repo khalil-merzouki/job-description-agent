@@ -1,7 +1,9 @@
 # Job description agent
 
-Install with `pnpm install`, copy `.env.example` to `.env`, configure OpenAI and `OUTPUT_DIR`, then run `pnpm start`.
+Install with `pnpm install`, copy `.env.example` to `.env`, configure `OPENAI_API_KEY`, `TYPESAFE_API_KEY` and `OUTPUT_DIR`, then run `pnpm start`.
 Requires Node.js 22.12 or later.
+
+Before analysis, TypeSafe Jev checks whether the input is a job description. Analysis proceeds only when its yes probability exceeds 0.5; rejected input displays an error without calling OpenAI or writing a result. Validation failures also stop analysis.
 
 ## Evaluating with Laminar
 
@@ -10,13 +12,13 @@ The evaluation runner uses the [Laminar TypeScript SDK](https://github.com/lmnr-
 
 | Command | Model | Results |
 | --- | --- | --- |
-| `pnpm eval` | Real OpenAI model; requires `OPENAI_API_KEY` | Uploaded to Laminar |
+| `pnpm eval` | Real OpenAI model and Jev guardrail; requires `OPENAI_API_KEY` and `TYPESAFE_API_KEY` | Uploaded to Laminar |
 | `pnpm eval:mock` | Deterministic mocked model; no OpenAI key needed | Uploaded to Laminar |
 | `pnpm eval:local` | Deterministic mocked model; no keys or network needed | Console score table |
 | `pnpm test` | Mock workflow and scorer regression tests | Local test results |
 | `pnpm typecheck` | Type checks application and evaluation code | Local diagnostics |
 
-Every evaluation uses a fresh in-memory `writeFile` tool, so it captures writes without modifying `output/` or requiring `OUTPUT_DIR`. Live evaluation makes paid OpenAI calls and sends the synthetic descriptions, responses, file contents and scores to Laminar.
+Every evaluation uses a fresh in-memory `writeFile` tool, so it captures writes without modifying `output/` or requiring `OUTPUT_DIR`. Mock runs simulate Jev responses as well as OpenAI responses. Live evaluation sends synthetic descriptions to TypeSafe for validation, makes paid OpenAI calls and sends the descriptions, responses, file contents and scores to Laminar.
 
 `evals/fixtures.ts` contains four synthetic cases: an explicit annual salary, a French description with an estimated salary, missing facts, and an hourly contract. Add cases with the description, expected analysis, and mock file name. The expected analysis is a reference answer; live agents only receive the description.
 
@@ -28,3 +30,21 @@ Scores range from 0 to 1:
 - `file_workflow`: exactly one write, correct kebab-case company/title filename, valid pretty-printed JSON matching the final response and returned path.
 
 Mock scores validate the evaluation wiring and tool loop; run `pnpm eval` to measure model extraction quality. Mock and live runs use separate Laminar groups. Tests include intentionally wrong facts, salaries and file writes so broken scorers cannot pass solely by replaying reference answers.
+
+## Evaluating the guardrail
+
+The dedicated guardrail dataset in `evals/guardrails/fixtures.ts` includes complete, sparse, informal and multilingual postings, plus greetings, source code, articles, resumes and classification instructions. It evaluates the same Jev question and strict probability > 0.5 policy as the application.
+
+Per-case scores are `decision_correct`, `false_accept`, `false_reject`, and `validation_error`. Aggregate accuracy is correct decisions divided by all cases, including errors. The false-accept rate divides wrong acceptances by expected-reject cases; the false-reject rate divides wrong rejections by expected-accept cases. Errors receive zero correctness credit and count separately from classification mistakes. A rate with no eligible cases displays `N/A`.
+
+Mock probabilities are deterministic and verify the evaluation workflow, not Jev's classification quality. The small synthetic dataset gives a reproducible starting point, not a guarantee for arbitrary real-world text.
+
+| Command | Validation | Reporting and credentials |
+| --- | --- | --- |
+| `pnpm eval:guardrails` | Live Jev | Laminar; requires `TYPESAFE_API_KEY` and `LMNR_PROJECT_API_KEY` |
+| `pnpm eval:guardrails:mock` | Mock Jev | Laminar; requires only `LMNR_PROJECT_API_KEY` |
+| `pnpm eval:guardrails:local` | Mock Jev | Local console; no keys or network |
+
+Guardrail evaluations never run OpenAI analysis or write analysis files, and require no `OUTPUT_DIR`. Live mode sends synthetic fixture text to TypeSafe and labeled inputs, probabilities/decisions or errors, and scores to Laminar. Reported mock mode sends only evaluation data to Laminar. Live and mock reports use separate `job-description-guardrails-live` and `job-description-guardrails-mock` groups, with mode and threshold metadata and the returned Jev model identifier when available.
+
+Each run prints case results and aggregate metrics; reported runs also print a Laminar results link. Runs exit with status 1 after reporting if any case is misclassified or has a validation error. Invalid options, missing credentials, or reporting failures also return status 1. Provider errors do not prevent the other cases from being evaluated. Laminar's average per-case `false_accept`/`false_reject` scores use all cases as their denominator; the console's class-specific rates use their respective expected class counts.

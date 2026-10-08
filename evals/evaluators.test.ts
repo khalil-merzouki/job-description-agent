@@ -3,8 +3,9 @@ import { test } from 'node:test';
 import { fixtures } from './fixtures.js';
 import { executeCase, type EvalOutput } from './executor.js';
 import { evaluators } from './evaluators.js';
-import { analyzeJobDescription } from '../src/agent/jobAnalyzer.js';
-import { createMockFileTool, createMockModel } from './mocks.js';
+import { analyzeJobDescription, InvalidJobDescriptionError } from '../src/agent/jobAnalyzer.js';
+import { createMockFileTool, createMockModel, createMockGuardrailClient } from './mocks.js';
+import { TypeSafeClient } from '@typesafe-ai/sdk';
 
 for (const fixture of fixtures) {
   test(`mock agent workflow: ${fixture.id}`, async () => {
@@ -18,10 +19,43 @@ test('provider receives the job and continues with the tool result', async () =>
   const fixture = fixtures[0]!;
   const model = createMockModel(fixture);
   const fileTool = createMockFileTool();
-  await analyzeJobDescription(fixture.jobDescription, { model, writeFileTool: fileTool.tool });
+  await analyzeJobDescription(fixture.jobDescription, { model, writeFileTool: fileTool.tool, guardrailClient: createMockGuardrailClient(0.51) });
   assert.equal(model.doGenerateCalls.length, 2);
   assert.match(JSON.stringify(model.doGenerateCalls[0]!.prompt), /Acme is hiring/);
   assert.match(JSON.stringify(model.doGenerateCalls[1]!.prompt), /\/mock-output\/acme-senior-frontend-engineer.json/);
+});
+
+for (const probability of [0, 0.1, 0.5]) {
+  test(`guardrail rejects non-job text at probability ${probability} without analysis or writes`, async () => {
+    const model = createMockModel(fixtures[0]!);
+    const fileTool = createMockFileTool();
+    await assert.rejects(analyzeJobDescription('Hello world', {
+      model, writeFileTool: fileTool.tool,
+      guardrailClient: createMockGuardrailClient(probability),
+    }), InvalidJobDescriptionError);
+    assert.equal(model.doGenerateCalls.length, 0);
+    assert.equal(fileTool.writes.length, 0);
+  });
+}
+
+test('guardrail sends the input to Jev and blocks analysis when validation is unavailable', async () => {
+  const model = createMockModel(fixtures[0]!);
+  const fileTool = createMockFileTool();
+  const client = new TypeSafeClient({
+    apiKey: 'mock-typesafe-key', retry: { maxRetries: 0 },
+    fetch: async (_url, init) => {
+      const request = JSON.parse(String(init?.body));
+      assert.deepEqual(request.state, { document: 'Hello world' });
+      assert.equal(request.questions.isJobDescription.type, 'noul');
+      assert.match(request.questions.isJobDescription.instructions, /job posting/);
+      return Response.json({ error: 'Unavailable' }, { status: 503 });
+    },
+  });
+  await assert.rejects(analyzeJobDescription('Hello world', {
+    model, writeFileTool: fileTool.tool, guardrailClient: client,
+  }));
+  assert.equal(model.doGenerateCalls.length, 0);
+  assert.equal(fileTool.writes.length, 0);
 });
 
 test('scorers reject hallucinated facts and incorrect salary handling', async () => {

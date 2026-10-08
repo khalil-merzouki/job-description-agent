@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-10-08
+goal: Agent should not check text that are not a valid job description use JEV
+  from typesafe
