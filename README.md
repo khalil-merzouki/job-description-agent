@@ -48,3 +48,31 @@ Mock probabilities are deterministic and verify the evaluation workflow, not Jev
 Guardrail evaluations never run OpenAI analysis or write analysis files, and require no `OUTPUT_DIR`. Live mode sends synthetic fixture text to TypeSafe and labeled inputs, probabilities/decisions or errors, and scores to Laminar. Reported mock mode sends only evaluation data to Laminar. Live and mock reports use separate `job-description-guardrails-live` and `job-description-guardrails-mock` groups, with mode and threshold metadata and the returned Jev model identifier when available.
 
 Each run prints case results and aggregate metrics; reported runs also print a Laminar results link. Runs exit with status 1 after reporting if any case is misclassified or has a validation error. Invalid options, missing credentials, or reporting failures also return status 1. Provider errors do not prevent the other cases from being evaluated. Laminar's average per-case `false_accept`/`false_reject` scores use all cases as their denominator; the console's class-specific rates use their respective expected class counts.
+
+## Standalone web search tool
+
+`createWebSearchTool` is exported from `src/agent/tools/webSearch.ts`. It is available for explicit standalone use and is not registered with the job-description agent. Application startup, salary estimation, prompts, and existing evaluation workflows do not require `TAVILY_API_KEY` and do not use search.
+
+```ts
+import { createWebSearchTool } from './src/agent/tools/webSearch.js';
+
+const search = createWebSearchTool();
+const result = await search.execute!(
+  { query: 'Python developer salary Paris' },
+  { toolCallId: 'standalone-search', messages: [], context: {} },
+);
+console.log(result);
+```
+
+Set `TAVILY_API_KEY` before invocation, or supply `{ apiKey }` to the factory. Importing or creating the tool makes no requests and needs no key. The default environment key is read at invocation; an explicitly supplied blank key returns `missing_credential`. The factory also accepts `{ fetch }` for simulated transport tests. Direct invocation and AI SDK invocation validate trimmed queries of 1–300 characters.
+
+Each instance has a two-request lifetime budget, including failed provider attempts. Calls beyond that budget return `budget_exhausted`. Create a fresh instance for an independent budget. Requests use Tavily basic search without retries and are aborted after ten seconds, including response-body reading. Bodies are limited to 128 KiB. The tool returns up to five distinct HTTP(S) sources, with titles up to 200 characters, URLs up to 2,048 characters, snippets up to 1,000 characters, and a `publishedDate` string or null. Result URLs are not fetched.
+
+Results contain the trimmed `query`, a `results` array, and one of these statuses:
+
+- `ok`: usable sources with `title`, `url`, `snippet`, and `publishedDate`.
+- `empty`: a valid provider result array with no usable sources.
+- `error`: no sources, with a safe `code` and fixed `message`. Codes cover `missing_credential`, `timeout`, `authentication`, `rate_limit` (including quota), `network`, `invalid_response` (including oversized bodies), and `provider`.
+- `budget_exhausted`: no request or sources because the instance used its two attempts.
+
+Invalid queries throw validation errors before a request. Provider failures return explicit outcomes instead of throwing raw errors. Authorization credentials and raw provider errors are excluded from tool results. Explicit invocation sends the caller's query to Tavily and can incur provider costs; snippets and dates are external evidence, not guarantees of accuracy or instructions to follow. Tests simulate transport and establish tool behavior rather than live search relevance. Agent integration requires a separate change.

@@ -1,17 +1,18 @@
 # Tasks
 
-## 1. Setup & Environment
+## 1. Standalone search tool
 
-- [ ] 1.1 Add `@tavily/core` dependency to `package.json` and verify installation succeeds.
-- [ ] 1.2 Update `.env.example` and `index.tsx` to document and require the `TAVILY_API_KEY` environment variable, verifying the agent fails fast at startup if missing.
+- [x] 1.1 Implement `createWebSearchTool` in `src/agent/tools/webSearch.ts` with the existing AI SDK/Zod, injectable fetch/credentials, lazy `TAVILY_API_KEY` lookup, and trimmed 1–300-character query validation. Verify valid/invalid input, zero requests on import/construction, and a safe missing-credential outcome before transport; add these dedicated tool tests to the test command.
+- [x] 1.2 Implement native fetch to Tavily with fixed basic-search options and no retries. Normalize up to five distinct HTTP(S) results with bounded titles/URLs/snippets and optional dates, distinguishing success, empty, and safe errors. Verify request shape, duplicate/malformed results, absent dates, authentication/quota/network errors, malformed responses, and credential/error-body redaction using simulated transport.
+- [x] 1.3 Enforce two attempted requests per instance with synchronous counters, independent instance budgets, a ten-second abort deadline including body consumption, timer cleanup, and a 128-KiB body cap. Verify concurrent invocations, failed-attempt accounting, exhaustion without additional requests, timeout cancellation using controlled timers, and oversized-response rejection.
+- [x] 1.4 Document the standalone factory, invocation-only credential requirement, returned statuses/results, limits, lifecycle, and Tavily query data flow in README and `.env.example`. Verify the documented tool contract matches its tests and the key is explicitly optional for current application/evaluation workflows; add no startup or evaluation credential checks.
 
-## 2. Core Implementation
+## 2. Compatibility verification
 
-- [ ] 2.1 Implement the `webSearch` tool using the Vercel AI SDK `tool` function in `src/agent/tools/webSearch.ts`, integrating the Tavily client. Verify it exports a valid AI tool.
-- [ ] 2.2 Update `src/agent/jobAnalyzer.ts` to include the `webSearch` tool in the `tools` object passed to `generateText`. Verify the TypeScript types compile successfully.
-- [ ] 2.3 Update the `SYSTEM_PROMPT` in `src/agent/jobAnalyzer.ts` to instruct the agent to use the web search tool for missing company details and salary estimation. Verify by observing the agent's updated reasoning process on an incomplete job description.
+- [x] 2.1 Run `pnpm typecheck`, `pnpm test`, `pnpm eval:local`, and `pnpm eval:guardrails:local` with external requests blocked and no Tavily key. Verify the analyzer does not import/register the tool, and prompts, generation limits, JSON schema, evaluation executors/fixtures, and startup requirements remain unchanged. Confirm offline checks pass without search calls or production output writes and run strict OpenSpec validation.
 
 ## Workflow follow-up
 
-- Archive the change after the tasks are implemented and the agent is manually tested to verify it searches the web successfully.
-
+- Optionally invoke the standalone tool against Tavily with configured credentials to inspect actual results; this does not enable it in the agent.
+- Request a separate integration change before registering the tool or changing agent search behavior.
+- Review before requesting archive.

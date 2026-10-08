@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx --env-file-if-exists=.env index.tsx",
-    "test": "node --import tsx --test evals/evaluators.test.ts evals/guardrails/*.test.ts",
+    "test": "node --import tsx --test evals/evaluators.test.ts evals/guardrails/*.test.ts src/agent/tools/*.test.ts",
     "typecheck": "tsc --noEmit",
     "eval": "node --env-file-if-exists=.env --import tsx evals/run.ts",
     "eval:mock": "node --env-file-if-exists=.env --import tsx evals/run.ts --mock",
