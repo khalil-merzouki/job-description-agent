@@ -3,6 +3,8 @@
 Install with `pnpm install`, copy `.env.example` to `.env`, configure `OPENAI_API_KEY`, `TYPESAFE_API_KEY` and `OUTPUT_DIR`, then run `pnpm start`.
 Requires Node.js 22.12 or later.
 
+For Career Intel job analysis, set `JOB_AGENT_TOKEN` to a long random secret and run `pnpm start:api`. This starts a loopback HTTP service on port 3002 by default (`JOB_AGENT_HOST` and `JOB_AGENT_PORT` override it). Configure `JOB_AGENT_URL=http://127.0.0.1:3002` and the same token in `career-intel-server`. `POST /analyze` accepts a JSON `description` with bearer authorization and returns structured analysis. This API path does not write result files; the interactive terminal app still does. CV extraction stays in `career-intel-ai`.
+
 Before analysis, TypeSafe Jev checks whether the input is a job description. Analysis proceeds only when its yes probability exceeds 0.5; rejected input displays an error without calling OpenAI or writing a result. Validation failures also stop analysis.
 
 ## Evaluating with Laminar

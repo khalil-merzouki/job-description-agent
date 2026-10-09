@@ -38,6 +38,7 @@ export async function analyzeJobDescription(
     model?: LanguageModel;
     writeFileTool?: typeof writeFileTool;
     guardrailClient?: GuardrailClient;
+    saveFile?: boolean;
   } = {},
 ): Promise<JobAnalysisResult> {
   const { accepted } = await evaluateJobDescription(
@@ -46,11 +47,14 @@ export async function analyzeJobDescription(
   );
   if (!accepted) throw new InvalidJobDescriptionError();
 
+  const saveFile = options.saveFile ?? true;
   const { output, steps } = await generateText({
     model: options.model ?? openai(MODEL),
-    system: SYSTEM_PROMPT,
+    system: saveFile
+      ? SYSTEM_PROMPT
+      : SYSTEM_PROMPT.split("Workflow:")[0] + "Return the structured analysis without writing a file.",
     prompt: `Analyze the following job description:\n\n"""\n${jobDescription}\n"""`,
-    tools: { writeFile: options.writeFileTool ?? writeFileTool },
+    tools: saveFile ? { writeFile: options.writeFileTool ?? writeFileTool } : {},
     // Step 1: call writeFile, step 2: produce the final structured answer (extra steps as safety margin).
     stopWhen: isStepCount(4),
     output: Output.object({ schema: jobAnalysisSchema }),
